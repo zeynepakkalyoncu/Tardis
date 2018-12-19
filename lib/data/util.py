@@ -1,4 +1,5 @@
 import os
+import re
 
 import dill
 import nltk
@@ -9,18 +10,17 @@ from tqdm import tqdm
 
 
 def preprocess(source_data, target_data):
-    # TODO: Preprocess in one pass
     # Convert to lowercase characters
     source_data = source_data.swifter.apply(lambda x: x.str.lower())
     target_data = target_data.swifter.apply(lambda x: x.str.lower())
 
+    # Remove punctuation
+    # Note: Does not remove underscores
+    source_data = source_data.swifter.apply(lambda x: x.str.replace(r'[^\w\s]', ''))
+    target_data = target_data.swifter.apply(lambda x: x.str.replace(r'[^\w\s]', ''))
+
     # Add SOS and EOS tokens
     target_data = target_data.swifter.apply(lambda x: 'SOS ' + x + ' EOS')
-
-    # Remove punctuation and digits
-    # WARNING: Removes special characters in some languages
-    # source_data = source_data.swifter.apply(lambda x: x.str.replace('[^a-zA-Z\s]', ''))
-    # target_data = target_data.swifter.apply(lambda x: x.str.replace('[^a-zA-Z\s]', ''))
 
     source_data = source_data.values.flatten()
     target_data = target_data.values.flatten()
@@ -84,6 +84,7 @@ def build_indices(source_data, target_data, source_vocab, target_vocab, one_hot)
                     decoder_target_data[i, j - 1] = target_vocab[word]
     return encoder_input_data, decoder_input_data, decoder_target_data
 
+
 def trim_sentences(sentences):
     trimmed_sentences = list()
     for sentence in sentences:
@@ -97,7 +98,6 @@ def trim_sentences(sentences):
 
 def reverse_index(indexed_data, vocab, ravel=False):
     reversed_data = list()
-    indexed_data = np.argmax(indexed_data, axis=-1)
     word_idx = {id: word for word, id in vocab.items()}
     for indexed_line in indexed_data:
         if ravel:
