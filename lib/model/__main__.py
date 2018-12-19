@@ -13,7 +13,8 @@ from lib.data.generator import WMTSequence
 from lib.model import metrics
 from lib.model.args import get_args
 from lib.model.seq2seq import Seq2Seq
-from lib.model.ensemble.seq2seq import Seq2Seq as EnsembleSeq2Seq
+from lib.model.ensemble.ensemble_seq2seq import EnsembleSeq2Seq
+from lib.model.ensemble.ensemble import Ensemble
 from lib.model.util import embedding_matrix
 from lib.model.ensemble.util import EncoderSlice, DecoderSlice
 
@@ -112,12 +113,14 @@ if __name__ == '__main__':
         model_config.input_split_index = encoder_train_input.shape[1]
         training_generator = WMTSequence(encoder_train_input, decoder_train_input, decoder_train_target, model_config)
 
+        model = EnsembleSeq2Seq(model_config)
+
+        ensemble_outputs = []
         for raw_train_input, decoder_train_target in training_generator:
             encoder_train_input, decoder_train_input = raw_train_input
             train_input = np.hstack((encoder_train_input, decoder_train_input))
             train_rdd = to_simple_rdd(sc, train_input, decoder_train_target)
 
-            model = EnsembleSeq2Seq(model_config)
             spark_model = SparkModel(model.model,
                                      frequency='epoch',
                                      mode='synchronous',
@@ -130,13 +133,11 @@ if __name__ == '__main__':
                             validation_split=0.0,
                             verbose=1)
 
-        print('encoder_test_input')
-        print(encoder_test_input.shape)
-        print(encoder_test_input)
-        print('raw_test_target')
-        print(raw_test_target.shape)
-        print(raw_test_target)
-        model.evaluate(encoder_test_input, raw_test_target)
+            ensemble_outputs.append(model.output)
+
+        avg_ensemble = Ensemble(model_config, ensemble_outputs, encoder_train_input)
+        # model.evaluate(encoder_test_input, raw_test_target)
+        avg_ensemble.evaluate(encoder_test_input, raw_test_target)
 
     else:
         training_generator = WMTSequence(encoder_train_input, decoder_train_input, decoder_train_target, model_config)

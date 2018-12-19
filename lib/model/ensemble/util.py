@@ -1,6 +1,5 @@
 from keras.engine.topology import Layer
 
-
 class EncoderSlice(Layer):
     def __init__(self, input_split_index, **kwargs):
         self.input_split_index = input_split_index

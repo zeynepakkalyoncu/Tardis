@@ -18,6 +18,7 @@ def bleu_score(reference, candidate, log_outputs=True):
         with open('%s_output.json' % DATASET, 'w') as json_file:
             json.dump(list(zip(reference, candidate)), json_file)
     reference = [[x] for x in reference]
+
     return corpus_bleu(reference, candidate, smoothing_function=SmoothingFunction().method4)
 
 
@@ -27,5 +28,3 @@ def multi_bleu_score(candidate, target_vocab):
     _, *refs = sacrebleu.download_test_set('wmt14', lang_pair)
     bleu = sacrebleu.corpus_bleu(candidate, refs)
     return bleu.score
-
-

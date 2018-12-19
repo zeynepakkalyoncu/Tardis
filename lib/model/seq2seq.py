@@ -12,7 +12,6 @@ from keras.callbacks import ModelCheckpoint
 from lib.model.metrics import bleu_score
 from lib.model.util import lr_scheduler, TimeHistory
 
-
 class Seq2Seq:
     def __init__(self, config):
         self.config = config
