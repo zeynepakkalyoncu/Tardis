@@ -103,7 +103,7 @@ if __name__ == '__main__':
     model_config.target_embedding_map = target_embedding_map
 
     if args.ensemble:
-        conf = SparkConf().setAppName('tardis').setMaster('local')
+        conf = SparkConf().setAppName('tardis').setMaster('local[*]')
         sc = SparkContext.getOrCreate(conf=conf)
 
         generator_config = deepcopy(args)
@@ -130,6 +130,12 @@ if __name__ == '__main__':
                             validation_split=0.0,
                             verbose=1)
 
+        print('encoder_test_input')
+        print(encoder_test_input.shape)
+        print(encoder_test_input)
+        print('raw_test_target')
+        print(raw_test_target.shape)
+        print(raw_test_target)
         model.evaluate(encoder_test_input, raw_test_target)
 
     else:
