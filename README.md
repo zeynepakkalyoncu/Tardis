@@ -26,7 +26,7 @@ An ensemble of the neural machine translation model from from Sequence to Sequen
   * Issue the following command from the project root directory: (WIP)
   - `spark-submit --driver-memory 1G -m lib/model/__main__.py --cpu [--ensemble] --dataset <lang_pair> --batch-size <batch_size> --recurrent-unit gru`
 
- Note: Beam search is used by default during testing. Add the flag `--beam-size 0` to use greedy search.
+ Note: Beam search is not used by default during testing. Add the flag `--beam-size <number>` to use beam search.
 
 ## References
 
