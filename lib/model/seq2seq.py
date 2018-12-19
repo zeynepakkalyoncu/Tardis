@@ -4,9 +4,8 @@ import numpy as np
 import tensorflow as tf
 import keras.backend as K
 from keras.initializers import RandomUniform
-from keras.layers import Input, LSTM, GRU, Embedding, Dense, Lambda, Reshape
+from keras.layers import Input, LSTM, GRU, Embedding, Dense
 from keras.models import Model
-from keras.losses import categorical_crossentropy
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
 
@@ -24,18 +23,12 @@ class Seq2Seq:
         else:
             devices = list('/gpu:' + x for x in config.devices)
 
-        if config.ensemble:
-            inputs = Input(shape=(None,))
-            # TODO: set indices dynamically
-            reconstructed_inputs = Reshape((128,), input_shape=(config.dataset_size,))(inputs)
-            encoder_inputs = Lambda(lambda x: x[:, :50])(reconstructed_inputs)
-            decoder_inputs = Lambda(lambda x: x[:, 50:])(reconstructed_inputs)
-
         with tf.device(devices[0]):
             initial_weights = RandomUniform(minval=-0.08, maxval=0.08, seed=config.seed)
+            encoder_inputs = Input(shape=(None,))
             encoder_embedding = Embedding(config.source_vocab_size, config.embedding_dim,
-                                          weights=[config.source_embedding_map], trainable=False)
-            if not config.ensemble: encoder_inputs = Input(shape=(None, ))
+                                          weights=[config.source_embedding_map],
+                                          trainable=False)
             encoder_embedded = encoder_embedding(encoder_inputs)
 
             if recurrent_unit == 'lstm':
@@ -54,37 +47,27 @@ class Seq2Seq:
                 encoder_states = [state_h]
 
         with tf.device(devices[1]):
-            if not config.ensemble: decoder_inputs = Input(shape=(None, ))
+            decoder_inputs = Input(shape=(None,))
             decoder_embedding = Embedding(config.target_vocab_size, config.embedding_dim,
-                                          weights=[config.target_embedding_map], trainable=False)
+                                          weights=[config.target_embedding_map],
+                                          trainable=False)
             decoder_embedded = decoder_embedding(decoder_inputs)
 
             if recurrent_unit.lower() == 'lstm':
-                decoder = LSTM(self.config.hidden_dim, return_state=True, return_sequences=True)(decoder_embedded,
-                                                                                                 initial_state=encoder_states)  # Accepts concatenated encoder states as input
+                decoder = LSTM(self.config.hidden_dim, return_state=True, return_sequences=True)(decoder_embedded, initial_state=encoder_states)
                 for i in range(1, self.config.num_decoder_layers):
-                    decoder = LSTM(self.config.hidden_dim, return_state=True, return_sequences=True)(
-                        decoder)  # Use the final encoder state as context
+                    decoder = LSTM(self.config.hidden_dim, return_state=True, return_sequences=True)(decoder)
                 decoder_outputs, decoder_states = decoder[0], decoder[1:]
             else:
-                decoder = GRU(self.config.hidden_dim, return_state=True, return_sequences=True)(decoder_embedded,
-                                                                                                initial_state=encoder_states)  # Accepts concatenated encoder states as input
+                decoder = GRU(self.config.hidden_dim, return_state=True, return_sequences=True)(decoder_embedded, initial_state=encoder_states)
                 for i in range(1, self.config.num_decoder_layers):
-                    decoder = GRU(self.config.hidden_dim, return_state=True, return_sequences=True)(
-                        decoder)  # Use the final encoder state as context
+                    decoder = GRU(self.config.hidden_dim, return_state=True, return_sequences=True)(decoder)
                 decoder_outputs, decoder_states = decoder[0], decoder[1]
-
-            # if config.ensemble:
-            #     decoder_reshape = Reshape((128, self.config.target_vocab_size)) #?
-            #     decoder_slice = Lambda(lambda x: x[:, 50:, :])
-            #     decoder_outputs = decoder_reshape(decoder_outputs)
-            #     decoder_outputs = decoder_slice(decoder_outputs)
 
             decoder_dense = Dense(config.target_vocab_size, activation='softmax')
             decoder_outputs = decoder_dense(decoder_outputs)
 
-        if config.ensemble: self.model = Model(inputs, decoder_outputs)
-        else: self.model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+        self.model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
         optimizer = Adam(lr=config.lr, clipnorm=25.)
         self.model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['acc'])
         print(self.model.summary())
@@ -113,7 +96,6 @@ class Seq2Seq:
                        validation_split=0.20,
                        callbacks=callbacks)
         print("Training time (in seconds):", time_history_callback.times)
-
 
     def train_generator(self, training_generator, validation_generator):
         checkpoint_filename = \
